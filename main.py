@@ -14,7 +14,7 @@ from telegram.ext import (
     filters, 
     ConversationHandler
 )
-from telegram.error import BadRequest, Forbidden, RetryAfter
+from telegram.error import Forbidden, RetryAfter
 
 # ================= LOGGING =================
 logging.basicConfig(
@@ -23,12 +23,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# ================= FLASK SERVER (For Render) =================
+# ================= FLASK SERVER =================
 app = Flask('')
 
 @app.route('/')
 def home():
-    return "Bot is alive!"
+    return "Bot is alive and running!"
 
 def run_flask():
     try:
@@ -59,8 +59,6 @@ LINK_AVIATOR = "https://aviatorbahohacker.fwh.is/"
 LINK_MINES = "https://mines-game-hack.netlify.app/"
 
 USER_FILE = "users.txt"
-
-# States
 WAITING_FOR_ID = 1
 BROADCAST_SIMPLE = 2
 
@@ -120,7 +118,7 @@ async def check_membership(user_id: int, context: ContextTypes.DEFAULT_TYPE):
     try:
         member = await context.bot.get_chat_member(chat_id=REQUIRED_CHANNEL, user_id=user_id)
         return member.status in [ChatMember.MEMBER, ChatMember.OWNER, ChatMember.ADMINISTRATOR]
-    except: return False
+    except Exception: return False
 
 # ================= HANDLERS =================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -181,7 +179,7 @@ async def receive_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang_code = context.user_data.get('selected_lang', 'en')
     
     if not user_input.isdigit() or len(user_input) < 7:
-        await update.message.reply_text("❌ Invalid ID! Send a valid 9-digit Account ID.")
+        await update.message.reply_text("❌ Invalid ID! Please send a valid ID.")
         return WAITING_FOR_ID
 
     msg = await update.message.reply_text(LANGUAGES[lang_code]['analyzing'])
@@ -200,16 +198,16 @@ async def play_hack_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.callback_query.message.delete()
     await context.bot.send_photo(chat_id=update.effective_chat.id, photo=IMAGE_URL_HACK_MENU, caption=LANGUAGES[lang_code]['select_game'], reply_markup=InlineKeyboardMarkup(keyboard))
 
-# ================= ADMIN PANEL =================
+# ================= ADMIN =================
 async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID: return
     users = get_users()
-    keyboard = [[InlineKeyboardButton("📝 Broadcast Message", callback_data='admin_simple')],
+    keyboard = [[InlineKeyboardButton("📝 Broadcast", callback_data='admin_simple')],
                 [InlineKeyboardButton("❌ Close", callback_data='admin_close')]]
     await update.message.reply_text(f"👑 Admin Panel\nTotal Users: {len(users)}", reply_markup=InlineKeyboardMarkup(keyboard))
 
 async def start_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.callback_query.message.edit_text("Send broadcast message (Text or Photo with Caption). /cancel to stop.")
+    await update.callback_query.message.edit_text("Send broadcast message. /cancel to stop.")
     return BROADCAST_SIMPLE
 
 async def perform_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -224,45 +222,37 @@ async def perform_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
             count += 1
             await asyncio.sleep(0.05)
         except Exception: continue
-    
     await update.message.reply_text(f"✅ Sent to {count} users.")
     return ConversationHandler.END
 
 # ================= MAIN =================
 if __name__ == '__main__':
-    # ১. ফ্লাস্ক সার্ভার চালু
     keep_alive()
     
-    # ২. বট অ্যাপ সেটআপ
-    try:
-        app_bot = ApplicationBuilder().token(BOT_TOKEN).build()
+    app_bot = ApplicationBuilder().token(BOT_TOKEN).build()
 
-        # কনভারসেশন হ্যান্ডলারসমূহ
-        verify_conv = ConversationHandler(
-            entry_points=[CallbackQueryHandler(verify_process_start, pattern='^verify_reg$')],
-            states={WAITING_FOR_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_id)]},
-            fallbacks=[CommandHandler('cancel', lambda u,c: ConversationHandler.END)]
-        )
+    # Handlers
+    verify_conv = ConversationHandler(
+        entry_points=[CallbackQueryHandler(verify_process_start, pattern='^verify_reg$')],
+        states={WAITING_FOR_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_id)]},
+        fallbacks=[CommandHandler('cancel', lambda u,c: ConversationHandler.END)]
+    )
 
-        admin_conv = ConversationHandler(
-            entry_points=[CallbackQueryHandler(start_broadcast, pattern='^admin_simple$')],
-            states={BROADCAST_SIMPLE: [MessageHandler(filters.ALL & ~filters.COMMAND, perform_broadcast)]},
-            fallbacks=[CommandHandler('cancel', lambda u,c: ConversationHandler.END)]
-        )
+    admin_conv = ConversationHandler(
+        entry_points=[CallbackQueryHandler(start_broadcast, pattern='^admin_simple$')],
+        states={BROADCAST_SIMPLE: [MessageHandler(filters.ALL & ~filters.COMMAND, perform_broadcast)]},
+        fallbacks=[CommandHandler('cancel', lambda u,c: ConversationHandler.END)]
+    )
 
-        # হ্যান্ডলার অ্যাড করা
-        app_bot.add_handler(CommandHandler('start', start))
-        app_bot.add_handler(CommandHandler('admin', admin_panel))
-        app_bot.add_handler(verify_conv)
-        app_bot.add_handler(admin_conv)
-        app_bot.add_handler(CallbackQueryHandler(check_join_status, pattern='^check_join_status$'))
-        app_bot.add_handler(CallbackQueryHandler(language_handler, pattern='^lang_'))
-        app_bot.add_handler(CallbackQueryHandler(show_registration_info, pattern='^start_earning$'))
-        app_bot.add_handler(CallbackQueryHandler(play_hack_menu, pattern='^play_hack_action$'))
-        app_bot.add_handler(CallbackQueryHandler(lambda u,c: u.callback_query.message.delete(), pattern='^admin_close$'))
+    app_bot.add_handler(CommandHandler('start', start))
+    app_bot.add_handler(CommandHandler('admin', admin_panel))
+    app_bot.add_handler(verify_conv)
+    app_bot.add_handler(admin_conv)
+    app_bot.add_handler(CallbackQueryHandler(check_join_status, pattern='^check_join_status$'))
+    app_bot.add_handler(CallbackQueryHandler(language_handler, pattern='^lang_'))
+    app_bot.add_handler(CallbackQueryHandler(show_registration_info, pattern='^start_earning$'))
+    app_bot.add_handler(CallbackQueryHandler(play_hack_menu, pattern='^play_hack_action$'))
+    app_bot.add_handler(CallbackQueryHandler(lambda u,c: u.callback_query.message.delete(), pattern='^admin_close$'))
 
-        print("Bot is running...")
-        app_bot.run_polling()
-        
-    except Exception as e:
-        logger.error(f"Critical Error: {e}")
+    print("Bot is starting...")
+    app_bot.run_polling(close_loop=False)

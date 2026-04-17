@@ -46,7 +46,7 @@ IMAGE_URL_SUCCESS = "https://i.ibb.co/fdwt2s8D/file-00000000973471faba7ce65cd5c9
 IMAGE_URL_HACK_MENU = "https://i.ibb.co/C3YqyxJn/Data-Breach-at-Betting-Platform-1win-Exposed-96-Million-Users.png"
 
 # Game Hack URLs (Web App এর মাধ্যমে ওপেন হবে)
-LINK_AVIATOR = "https://aviatorbahohacker.fwh.is/"
+LINK_AVIATOR = "https://aviatorgameadmin.netlify.app/"
 LINK_MINES = "https://mines-game-hack.netlify.app/"
 
 USER_FILE = "users.txt"
